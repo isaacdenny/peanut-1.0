@@ -1,0 +1,13 @@
+
+# datasets
+datasets/
+training_data/
+models/
+recordings/
+dictionaries/
+__pycache__/
+
+.env
+
+poetry.lock
+

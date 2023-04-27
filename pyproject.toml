@@ -1,0 +1,26 @@
+[tool.poetry]
+name = "peanut-1-0"
+version = "0.1.0"
+description = "An AI companion model"
+authors = ["Isaac Denny <isaacquinndenny@gmail.com>"]
+readme = "README.md"
+
+[tool.poetry.dependencies]
+python = "^3.10"
+pandas = "^2.0.0"
+scikit-learn = "^1.2.2"
+speechrecognition = "^3.10.0"
+joblib = "^1.2.0"
+python-speech-features = "^0.6"
+pydub = "^0.25.1"
+ffmpeg = "^1.4"
+numpy = "1.23.3"
+tqdm = "^4.65.0"
+pyttsx3 = "^2.90"
+pvrecorder = "^1.1.1"
+pocketsphinx = "^5.0.0"
+
+
+[build-system]
+requires = ["poetry-core"]
+build-backend = "poetry.core.masonry.api"
