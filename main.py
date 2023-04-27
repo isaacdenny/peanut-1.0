@@ -1,59 +1,72 @@
 import os
-import speech_recognition as sr
-import pyttsx3
-import sounddevice as sd
-from pvrecorder import PvRecorder
-import wave
-import struct
+import time
 
-sd.default.samplerate = 44100
-sd.default.channels = 2
-duration = 10
-fs = 44100
+import numpy as np
+import sounddevice as sd
+import speech_recognition as sr
+import wavio
+from joblib import load
+
+from features.model_behaviors import recognize_speech, record
+from features.model_builder import ModelBuilder
+
 active = True
-path = os.path.join(os.path.abspath('.'), "recordings/speech_input.wav")
-# Set up a recognizer instance
-r = sr.Recognizer()
+recording_path = os.path.join(os.path.abspath("."), "recordings/speech_input.wav")
 
 # Set up paths for the speech recognition model and dictionary
 model_path = "/models/p0.model"
 dict_path = "/dictionaries/p0.dict"
+dataset_path = "/datasets/train-clean-categorization"
+model = None
+recording = False
+recorded_audio = []
+wait_time = 3
+listen_time = 0
+volume_threshold = 0.08
 
-# Configure the recognizer instance to use the pocketsphinx speech recognition engine
-r = sr.Recognizer()
-# Start the microphone and listen for speech
-recorder = PvRecorder(device_index=10, frame_length=512)
-audio = []
+if os.path.exists(model_path):
+    model = load(model_path)
+else:
+    print("MLPClassifier model not found.")
+    print("Building new model with dataset: " + dataset_path)
+    mb = ModelBuilder(dataset_path, model_path)
+    model = mb.build_model()
+
+
+# Define the callback function
+def audio_callback(indata, frames, _time, status):
+    global recording, active, wait_time, recorded_audio, listen_time
+    current_time = time.time()
+    volume = np.sqrt(np.mean(np.square(indata)))
+    print("Volume:", volume)
+
+    if volume > volume_threshold and recording:
+        listen_time = current_time + wait_time
+    if volume > volume_threshold and not recording:
+        print("Recording started...")
+        listen_time = current_time + wait_time
+        recorded_audio = sd.rec(2 * 48000, channels=1)
+        recording = True
+    elif volume <= volume_threshold and recording and current_time > listen_time:
+        print("Recording stopped...")
+        recording = False
+        # Save the recorded audio to a WAV file
+        wavio.write(recording_path, recorded_audio, 48000, sampwidth=2)
+        with sr.AudioFile(recording_path) as source:
+            print("reading file")
+            audio = record(source)
+            # Perform speech recognition
+            try:
+                text = recognize_speech(audio=audio)
+                print("You said: {}".format(text))
+            except sr.UnknownValueError:
+                print("Sorry, I didn't catch that")
+            finally:
+                active = False
+
 
 while active:
-    try:
-        recorder.start()
-
-        while True:
-            frame = recorder.read()
-            audio.extend(frame)
-    except KeyboardInterrupt:
-        recorder.stop()
-        with wave.open(path, 'w') as f:
-            f.setparams((1, 2, 16000, 512, "NONE", "NONE"))
-            f.writeframes(struct.pack("h" * len(audio), *audio))
-    finally:
-        recorder.delete()
-
-    r = sr.Recognizer()
-    audio_file = sr.AudioFile(path)
-    with audio_file as source:
-        print("reading file")
-        audio = r.record(source)
-
-    # Perform speech recognition
-    try:
-        # text = r.recognize_sphinx(audio_data=audio, language_model=model_path, keyword_entries=[(w, 1) for w in open(dict_path)])
-        text = r.recognize_sphinx(audio_data=audio)
-        print("You said: {}".format(text))
-    except sr.UnknownValueError:
-        print("Sorry, I didn't catch that")
-    except sr.RequestError as e:
-        print("Could not request results; {0}".format(e))
-    finally:
-        active = False
+    # Create an InputStream object and start the stream
+    with sd.InputStream(callback=audio_callback, channels=1):
+        print("listening...")
+        sd.sleep(10000)

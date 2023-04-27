@@ -3,10 +3,9 @@ import os
 import numpy as np
 import scipy.io.wavfile as wav
 from joblib import dump
-from pydub import AudioSegment
-from python_speech_features import logfbank, mfcc
+from python_speech_features import mfcc
 from sklearn.model_selection import train_test_split
-from sklearn.neural_network import MLPClassifier, MLPRegressor
+from sklearn.neural_network import MLPClassifier
 from sklearn.preprocessing import LabelEncoder
 from tqdm import tqdm
 
@@ -24,7 +23,7 @@ class ModelBuilder:
 
     def scan_dataset(self, path):
         scanned_files = []
-        if path is None:
+        if path is None or not os.path.exists(path):
             return []
         for item in os.listdir(path):
             d = os.path.join(path, item)
@@ -76,6 +75,10 @@ class ModelBuilder:
         y_encoded = le.fit_transform(self.y)
 
         # Split data into training and testing sets
+        if len(self.X) <= 0:
+            print('No dataset values to train')
+            return
+
         X_train, X_test, y_train, y_test = train_test_split(self.X, y_encoded, test_size=0.2)
 
         # Train a neural network model with tqdm progress bar
@@ -100,4 +103,3 @@ class ModelBuilder:
         if test_accuracy > 50:
             self.model_file = "./models/p0.model"
             dump(clf, self.model_file)
-            
