@@ -59,12 +59,12 @@ def main(argv):
 
     mb = ModelBuilder(dataset_path, model_path)
 
-    if os.path.exists(model_path):
+    if rebuild:
+        print("Building new model with dataset: " + dataset_path)
+        model = mb.build_model(rebuild) 
+    elif os.path.exists(model_path):
         print("MLPClassifier model found: ", model_path)
         model = mb.build_model()
-    elif rebuild:
-        print("Building new model with dataset: " + dataset_path)
-        model = mb.build_model(rebuild)
     else:
         print("MLPClassifier model not found.")
         sys.exit(1)
@@ -73,7 +73,7 @@ def main(argv):
         # Create an InputStream object and start the stream
         with sd.InputStream(callback=audio_callback, channels=1):
             print("listening...")
-            sd.sleep(10000)
+            sd.sleep(10000) #longer for less interuptions
 
 if __name__ == "__main__":
    main(sys.argv[1:])
