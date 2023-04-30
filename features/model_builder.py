@@ -2,19 +2,23 @@ import os
 
 import numpy as np
 import scipy.io.wavfile as wav
-from joblib import dump
+from joblib import dump, load
 from python_speech_features import mfcc
 from sklearn.model_selection import train_test_split
 from sklearn.neural_network import MLPClassifier
 from sklearn.preprocessing import LabelEncoder
 from tqdm import tqdm
 
+from .classifier_model import ClassifierModel
+
 
 class ModelBuilder:
-    def __init__(self, dataset_path, model_file):
+    def __init__(self, dataset_path, model_path):
         self.X = []
         self.y = []
-        self.model_file = model_file
+        self.model_path = model_path
+        self.classes_path = self.model_path + '.classes.npy'
+        self.params_path = self.model_path.split(".")[0] + ".params.txt"
         self.transcriptions = {}
         self.max_frames = 0
         self.max_features = 0
@@ -34,7 +38,15 @@ class ModelBuilder:
                 scanned_files.append(d)
         return scanned_files
 
-    def build_model(self):
+    def build_model(self, rebuild=False):
+        if not rebuild:
+            try:
+                clf = load(self.model_path)
+                clf_model = ClassifierModel(clf, self.params_path)
+                return clf_model
+            except:
+                print("Error loading model from: ", self.model_path)
+
         for file in tqdm(self.scanned_files, desc="Loading transcriptions"):
             filepath = os.path.abspath(file)
             if filepath[-4:] != ".txt":
@@ -73,10 +85,11 @@ class ModelBuilder:
         # Encode labels as integers
         le = LabelEncoder()
         y_encoded = le.fit_transform(self.y)
+        np.save(self.classes_path, le.classes_)
 
         # Split data into training and testing sets
         if len(self.X) <= 0:
-            print('No dataset values to train')
+            print("No dataset values to train")
             return
 
         X_train, X_test, y_train, y_test = train_test_split(self.X, y_encoded, test_size=0.2)
@@ -84,8 +97,6 @@ class ModelBuilder:
         # Train a neural network model with tqdm progress bar
         clf = MLPClassifier(
             hidden_layer_sizes=(256, 128),
-            batch_size="400",
-            warm_start=True,
             epsilon=1e-08,
             learning_rate="adaptive",
             max_iter=200,
@@ -100,6 +111,13 @@ class ModelBuilder:
         test_accuracy = clf.score(X_test, y_test)
         print("Test Accuracy: {:.2f}%".format(test_accuracy * 100))
         # Save the trained model to a file
-        if test_accuracy > 50:
-            self.model_file = "./models/p0.model"
-            dump(clf, self.model_file)
+        with open(self.model_path, "w") as fp:
+            pass
+        dump(clf, self.model_path)
+
+        with open(self.params_path, "w") as f:
+            f.write(f"{self.model_path.split('.')[0]}\n{self.classes_path}\n{self.max_frames}\n{self.max_features}")
+
+        clf_model = ClassifierModel(clf, self.params_path)
+
+        return clf_model
