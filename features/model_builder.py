@@ -8,6 +8,7 @@ from sklearn.model_selection import train_test_split
 from sklearn.neural_network import MLPClassifier
 from sklearn.preprocessing import LabelEncoder
 from tqdm import tqdm
+from .helper import calculate_nfft
 
 from .classifier_model import ClassifierModel
 
@@ -17,8 +18,8 @@ class ModelBuilder:
         self.X = []
         self.y = []
         self.model_path = model_path
-        self.classes_path = self.model_path + '.classes.npy'
-        self.params_path = self.model_path.split(".")[0] + ".params.txt"
+        self.classes_path = self.model_path.split(".joblib")[0] + '.classes.npy'
+        self.params_path = self.model_path.split(".joblib")[0] + ".params.txt"
         self.transcriptions = {}
         self.max_frames = 0
         self.max_features = 0
@@ -62,7 +63,8 @@ class ModelBuilder:
             if filepath[-4:] != ".wav":  # only .wav files for now
                 continue
             sample_rate, audio = wav.read(filepath)
-            features = mfcc(audio, sample_rate)
+            nfft = calculate_nfft(sample_rate)
+            features = mfcc(audio, sample_rate, nfft=nfft)
 
             if features.shape[0] > self.max_frames:
                 self.max_frames = features.shape[0]
@@ -75,7 +77,8 @@ class ModelBuilder:
             if filepath[-4:] != ".wav":  # only .wav files for now
                 continue
             sample_rate, audio = wav.read(filepath)
-            features = mfcc(audio, sample_rate)
+            nfft = calculate_nfft(sample_rate)
+            features = mfcc(audio, sample_rate, nfft=nfft)
 
             padded_features = np.zeros((self.max_frames, self.max_features))
             padded_features[: features.shape[0], : features.shape[1]] = features

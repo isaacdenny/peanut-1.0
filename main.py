@@ -46,22 +46,20 @@ def audio_callback(indata, frames, _time, status):
                 print("Sorry, I didn't catch that")
 
 def main(argv):
-    if len(argv) != 1:
-        print('Usage: python main.py <rebuild>')
+    if len(argv) > 1:
+        print('Usage: python main.py [--rebuild]')
         sys.exit()
     global model
     active = True
     # Set up paths for the speech recognition model and dictionary
     model_path = os.path.abspath("./models/p0.joblib")
-    dict_path = os.path.abspath("./dictionaries/p0.dict")
     dataset_path = os.path.abspath("./datasets/train-clean-categorization")
-    rebuild = bool(sys.argv[0])
-
+    
     mb = ModelBuilder(dataset_path, model_path)
 
-    if rebuild:
+    if len(sys.argv) > 0 and sys.argv[0] == '--rebuild':
         print("Building new model with dataset: " + dataset_path)
-        model = mb.build_model(rebuild) 
+        model = mb.build_model(rebuild=True) 
     elif os.path.exists(model_path):
         print("MLPClassifier model found: ", model_path)
         model = mb.build_model()
@@ -76,4 +74,4 @@ def main(argv):
             sd.sleep(10000) #longer for less interuptions
 
 if __name__ == "__main__":
-   main(sys.argv[1:])
+   main(sys.argv[2:])
